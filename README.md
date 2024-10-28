@@ -97,3 +97,4 @@ CREATE TABLE enrollment (
 2. Faça o push do código desenvolvido no seu Github
 3. Informe ao recrutador quando concluir o desafio junto com o link do repositório
 4. Após revisão do projeto, em conjunto com a equipe técnica, deixe seu repositório privado
+
