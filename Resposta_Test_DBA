@@ -211,18 +211,19 @@ SELECT
 FROM 
     enrollment e
 JOIN 
-    course c ON e.course_id = c.id
+    institution i ON e.institution_id = i.id
+JOIN 
+    course c ON c.institution_id = i.id
 JOIN 
     person p ON e.person_id = p.id
 WHERE 
     e.tenant_id = :tenant_id
     AND e.institution_id = :institution_id
     AND e.is_active = TRUE  -- Considera apenas registros válidos
-    AND p.metadata @> :search_term::jsonb  -- Busca full-text no JSONB com um termo específico
+    AND p.metadata @> :search_term::jsonb  -- Busca por termo específico no JSONB
 GROUP BY 
-    c.id, c.name
-ORDER BY 
-    enrollment_count DESC;
+    c.id, c.name;
+
 Explicação dos Filtros e Parâmetros
 :tenant_id e :institution_id: Esses parâmetros são obrigatórios para filtrar o tenant e a institution.
 e.is_active = TRUE: Garante que apenas registros ativos são considerados, respeitando o conceito de exclusão lógica.
@@ -250,14 +251,17 @@ FROM
     enrollment e
 JOIN 
     person p ON e.person_id = p.id
+JOIN 
+    institution i ON e.institution_id = i.id
+JOIN 
+    course c ON c.institution_id = i.id
 WHERE 
     e.tenant_id = :tenant_id
     AND e.institution_id = :institution_id
-    AND e.course_id = :course_id
+    AND c.id = :course_id  -- Filtra pelo curso específico
     AND e.is_active = TRUE  -- Apenas registros válidos
 ORDER BY 
     p.name ASC  -- Ordena por nome para exibir de forma organizada
-LIMIT :limit OFFSET :offset;
 
 Explicação dos Filtros e Parâmetros
 :tenant_id, :institution_id, e :course_id: Filtros obrigatórios para restringir a busca ao curso específico em uma instituição e tenant definidos.
@@ -282,6 +286,7 @@ Para a tabela enrollment, um critério adequado de particionamento pode ser a co
 
 Definição da Tabela com Particionamento
 A partir do PostgreSQL 10, é possível usar o particionamento nativo. Abaixo está a definição da tabela enrollment reescrita para suportar particionamento:
+drop table enrollment;
 CREATE TABLE enrollment (
     id SERIAL,
     tenant_id INTEGER NOT NULL,
@@ -291,15 +296,14 @@ CREATE TABLE enrollment (
     status VARCHAR(20),
     is_active BOOLEAN DEFAULT TRUE,  -- Coluna para exclusão lógica
     PRIMARY KEY (tenant_id, id)  -- A chave primária agora inclui tenant_id
-) PARTITION BY LIST (tenant_id);  -- Define o particionamento por tenant_id
+) PARTITION BY RANGE (tenant_id);  -- Define o particionamento por tenant_id
 
-Criação das Partições
-Depois de criar a tabela principal, precisamos criar partições para cada tenant_id. Aqui está um exemplo de como criar partições:
+
 CREATE TABLE enrollment_tenant_1 PARTITION OF enrollment
-FOR VALUES IN (1);
+FOR VALUES FROM (1) to (100);
 
 CREATE TABLE enrollment_tenant_2 PARTITION OF enrollment
-FOR VALUES IN (2);
+FOR VALUES FROM (100) to (200);
 
 -- Continue criando partições para cada tenant_id necessário
 
